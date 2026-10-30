@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>창원 청년 지원사업 찾기</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <h1>창원 청년 지원사업 찾기</h1>
+  <p class="sub">4가지만 고르면, 지금 받을 수 있는 창원시 지원을 판정 이유와 함께 보여 드려요.</p>
+
+  <form id="form" class="card">
+    <label>나이(만)
+      <input id="age" type="number" inputmode="numeric" min="1" max="99" required placeholder="예: 28">
+    </label>
+    <fieldset>
+      <legend>거주지</legend>
+      <label class="chip"><input type="radio" name="residence" value="창원시" checked> 창원시</label>
+      <label class="chip"><input type="radio" name="residence" value="창원 외"> 창원 외</label>
+    </fieldset>
+    <fieldset>
+      <legend>현재 상태</legend>
+      <label class="chip"><input type="radio" name="status" value="구직 중" checked> 구직 중</label>
+      <label class="chip"><input type="radio" name="status" value="재직 중"> 재직 중</label>
+      <label class="chip"><input type="radio" name="status" value="창업 준비"> 창업 준비</label>
+      <label class="chip"><input type="radio" name="status" value="학생"> 학생</label>
+    </fieldset>
+    <fieldset>
+      <legend>관심 분야 (여러 개 선택 가능)</legend>
+      <label class="chip"><input type="checkbox" name="fields" value="주거"> 주거</label>
+      <label class="chip"><input type="checkbox" name="fields" value="일자리" checked> 일자리</label>
+      <label class="chip"><input type="checkbox" name="fields" value="창업"> 창업</label>
+      <label class="chip"><input type="checkbox" name="fields" value="교육"> 교육</label>
+    </fieldset>
+    <button type="submit">찾기</button>
+    <p id="error" class="error" hidden></p>
+  </form>
+
+  <section id="results" hidden>
+    <h2>모집 중인 사업</h2>
+    <div id="open"></div>
+    <h2 class="closed-title">2026년 접수 마감</h2>
+    <div id="closed"></div>
+  </section>
+
+  <footer id="footer">데이터 기준일: <span id="dataDate">-</span> · 출처: 창원시·창원산업진흥원 공고(사업별 상세 화면에서 확인)</footer>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function readInput() {
+  return {
+    age: $('#age').value.trim(),
+    residence: document.querySelector('input[name=residence]:checked').value,
+    status: document.querySelector('input[name=status]:checked').value,
+    fields: [...document.querySelectorAll('input[name=fields]:checked')].map((x) => x.value),
+  };
+}
+
+function badgeClass(r) {
+  if (r === '해당됨') return 'ok';
+  if (r === '해당 안 됨') return 'no';
+  return 'check';
+}
+
+function item(row, input) {
+  const q = new URLSearchParams({ id: row.id, age: input.age, residence: input.residence, status: input.status });
+  return `<a class="item" href="/detail.html?${q}">
+    <div class="row"><strong>${esc(row.name)}</strong><span class="badge ${badgeClass(row.result)}">${esc(row.result)}</span></div>
+    <ul class="reasons">${row.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+  </a>`;
+}
+
+async function run(input) {
+  $('#error').hidden = true;
+  if (!input.age) { $('#error').textContent = '나이를 입력해 주세요.'; $('#error').hidden = false; return; }
+  if (!input.fields.length) { $('#error').textContent = '관심 분야를 하나 이상 골라 주세요.'; $('#error').hidden = false; return; }
+  const q = new URLSearchParams({ age: input.age, residence: input.residence, status: input.status, fields: input.fields.join(',') });
+  const res = await fetch('/api/search?' + q);
+  const data = await res.json();
+  if (!res.ok) { $('#error').textContent = data.error || '오류가 났어요.'; $('#error').hidden = false; return; }
+  $('#dataDate').textContent = data.dataDate;
+  $('#open').innerHTML = data.open.length ? data.open.map((r) => item(r, input)).join('') : '<p class="empty">모집 중인 사업이 없어요.</p>';
+  $('#closed').innerHTML = data.closed.length ? data.closed.map((r) => item(r, input)).join('') : '<p class="empty">없음</p>';
+  $('#results').hidden = false;
+  sessionStorage.setItem('lastInput', JSON.stringify(input));
+}
+
+$('#form').addEventListener('submit', (e) => { e.preventDefault(); run(readInput()); });
+
+// 상세 화면에서 뒤로 왔을 때 이전 입력 복원
+try {
+  const last = JSON.parse(sessionStorage.getItem('lastInput') || 'null');
+  if (last) {
+    $('#age').value = last.age;
+    document.querySelector(`input[name=residence][value="${last.residence}"]`).checked = true;
+    document.querySelector(`input[name=status][value="${last.status}"]`).checked = true;
+    document.querySelectorAll('input[name=fields]').forEach((x) => { x.checked = last.fields.includes(x.value); });
+    run(last);
+  }
+} catch (e) {}
+</script>
+</body>
+</html>

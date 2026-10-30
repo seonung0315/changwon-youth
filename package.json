@@ -1,0 +1,10 @@
+{
+  "name": "changwon-youth-matching",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "창원 청년 지원사업 맞춤 매칭 - 첫 버전 (PRD v2 핵심 시나리오)",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0"
+  }
+}

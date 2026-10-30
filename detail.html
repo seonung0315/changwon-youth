@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지원사업 상세</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <p><a href="/" class="back">← 결과로 돌아가기</a></p>
+  <div id="box" class="card">불러오는 중…</div>
+  <footer>데이터 기준일: <span id="dataDate">-</span></footer>
+</main>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const badgeClass = (r) => r === '해당됨' ? 'ok' : r === '해당 안 됨' ? 'no' : 'check';
+
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const res = await fetch('/api/program?' + q);
+  const d = await res.json();
+  const box = document.getElementById('box');
+  if (!res.ok) { box.textContent = d.error || '오류가 났어요.'; return; }
+  document.getElementById('dataDate').textContent = d.dataDate;
+  const period = d.always === 'Y'
+    ? `${d.applyStart || ''} ~ 예산 소진 시까지(상시)`
+    : `${d.applyStart || '확인 필요'} ~ ${d.applyEnd || '확인 필요'}`;
+  const link = d.link
+    ? `<a class="button ${d.link.official ? '' : 'ref'}" href="${esc(d.link.url)}" target="_blank" rel="noopener">${esc(d.link.label)}</a>`
+    : '<p>링크 없음</p>';
+  box.innerHTML = `
+    <h1>${esc(d.name)}</h1>
+    <p><span class="badge ${badgeClass(d.result)}">${esc(d.result)}</span> ${d.recruit === '마감' ? '<span class="badge closed">2026년 접수 마감</span>' : ''}</p>
+    <h2>판정 이유</h2>
+    <ul class="reasons">${d.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <h2>추가로 확인할 조건</h2>
+    <p>${esc(d.other || '없음')}</p>
+    <h2>지원 내용</h2>
+    <p>${esc(d.benefit)}</p>
+    <dl>
+      <dt>신청기간</dt><dd>${esc(period)}</dd>
+      <dt>신청방법</dt><dd>${esc(d.applyMethod)}</dd>
+      <dt>필요서류</dt><dd>${esc(d.documents)}</dd>
+      <dt>데이터 기준일</dt><dd>${esc(d.checkedDate)}</dd>
+    </dl>
+    ${link}`;
+})();
+</script>
+</body>
+</html>
